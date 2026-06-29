@@ -11,7 +11,9 @@ from sqlalchemy.orm import Session
 
 import models
 import schemas
-
+from sqlalchemy.orm import Session
+from models import Reminder
+from typing import Optional, List
 
 # =============================================================================
 # USER CRUD OPERATIONS
@@ -204,7 +206,7 @@ def create_reminder(db: Session, reminder: schemas.ReminderCreate, task_id: int)
 def get_reminders(
     db: Session, 
     task_id: Optional[int] = None, 
-    pending_only: bool = False,
+    active_only: bool = True,
     limit: int = 100
 ) -> List[models.Reminder]:
     """
@@ -217,13 +219,8 @@ def get_reminders(
     if task_id is not None:
         conditions.append(models.Reminder.task_id == task_id)
     
-    if pending_only:
-        conditions.append(
-            and_(
-                models.Reminder.sent == False,
-                models.Reminder.delivery_status == "PENDING"
-            )
-        )
+    if active_only:
+        conditions.append(models.Reminder.delivery_status == "PENDING")
 
     if conditions:
         statement = statement.where(*conditions)

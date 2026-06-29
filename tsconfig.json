@@ -1,26 +1,32 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
-    "module": "ESNext",
+    "target": "ES2020",
+    "useDefineForClassFields": true,
     "lib": [
-      "ES2022",
+      "ES2020",
       "DOM",
       "DOM.Iterable"
     ],
+    "module": "ESNext",
     "skipLibCheck": true,
+    "esModuleInterop": true,
     "moduleResolution": "bundler",
-    "isolatedModules": true,
-    "moduleDetection": "force",
-    "allowJs": true,
-    "jsx": "react-jsx",
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
     "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": [
+    "src",
+    "tailwind.config.js"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
 }

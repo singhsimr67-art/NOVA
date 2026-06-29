@@ -269,3 +269,29 @@ def ai_reminders_endpoint(payload: ReminderRequestPayload):
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Gemini API copywriting system failed: {str(e)}"
         )
+
+
+@router.get(
+    "/reminders",
+    response_model=List[schemas.ReminderResponse],
+    tags=["Reminders"],
+    summary="Fetch list of registered reminders"
+)
+def list_reminders_endpoint(
+    task_id: Optional[int] = None,
+    active_only: bool = True,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """
+    Queries active and pending reminders from the SQLite database, optionally filtered by task.
+    """
+    try:
+        reminders = crud.get_reminders(db=db, task_id=task_id, active_only=active_only, limit=limit)
+        return reminders
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unable to fetch reminders: {str(e)}"
+        )
+

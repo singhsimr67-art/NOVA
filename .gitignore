@@ -1,17 +1,8 @@
-
 node_modules/
-__pycache__/
-.venv/
-.env
-*.db
-*.pdf
-c program/
-c_cpp_properties.json
-launch.json
-settings.json
-metadata.json
-test_api.py
-assets/
-.vscode/
-dist/
 build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
