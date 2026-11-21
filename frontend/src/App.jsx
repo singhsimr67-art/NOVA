@@ -12,6 +12,18 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
   const abortRef = useRef(null);
+  const [theme, setTheme] = useState(
+    () =>
+      localStorage.getItem("nova-theme") ||
+      (window.matchMedia("(prefers-color-scheme: light)").matches
+        ? "light"
+        : "dark")
+  );
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("nova-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -30,6 +42,59 @@ export default function App() {
     refreshChats();
   }, []);
 
+  // change the last message (the assistant reply being built)
+  function updateLast(fn) {
+    setMessages((prev) => {
+      const copy = [...prev];
+      copy[copy.length - 1] = fn(copy[copy.length - 1]);
+      return copy;
+    });
+  }
+
+  function applyEvent(evt) {
+    if (evt.t === "token") {
+      updateLast((m) => ({ ...m, content: m.content + evt.v }));
+    } else if (evt.t === "tool") {
+      updateLast((m) => ({
+        ...m,
+        tools: [
+          ...(m.tools || []),
+          { id: evt.id, name: evt.name, args: evt.args, status: evt.status },
+        ],
+      }));
+    } else if (evt.t === "tool_result") {
+      updateLast((m) => ({
+        ...m,
+        tools: (m.tools || []).map((t) =>
+          t.id === evt.id ? { ...t, status: evt.status } : t
+        ),
+      }));
+    } else if (evt.t === "error") {
+      updateLast((m) => ({
+        ...m,
+        content: (m.content ? m.content + "\n\n" : "") + `⚠ ${evt.v}`,
+      }));
+    }
+  }
+
+  async function approve(id, allow) {
+    updateLast((m) => ({
+      ...m,
+      tools: (m.tools || []).map((t) =>
+        t.id === id ? { ...t, status: allow ? "running" : "denied" } : t
+      ),
+    }));
+    try {
+      await fetch(`${API}/approve/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allow }),
+      });
+    } catch {
+      /* backend gone: nothing to do */
+    }
+  }
+
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
@@ -40,7 +105,7 @@ export default function App() {
     setMessages((prev) => [
       ...prev,
       { role: "user", content: text },
-      { role: "assistant", content: "" },
+      { role: "assistant", content: "", tools: [] },
     ]);
 
     try {
@@ -56,18 +121,25 @@ export default function App() {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        if (chunk) received = true;
-        setMessages((prev) => {
-          const copy = [...prev];
-          const last = copy[copy.length - 1];
-          copy[copy.length - 1] = { ...last, content: last.content + chunk };
-          return copy;
-        });
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop(); // keep the unfinished last line
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let evt;
+          try {
+            evt = JSON.parse(line);
+          } catch {
+            continue;
+          }
+          if (evt.t === "token") received = true;
+          applyEvent(evt);
+        }
       }
     } catch (err) {
       if (err.name === "AbortError") {
@@ -77,14 +149,11 @@ export default function App() {
           setInput(text);
         }
       } else {
-        setMessages((prev) => {
-          const copy = [...prev];
-          copy[copy.length - 1] = {
-            role: "assistant",
-            content: `Could not reach Nova: ${err.message}`,
-          };
-          return copy;
-        });
+        updateLast(() => ({
+          role: "assistant",
+          content: `Could not reach Nova: ${err.message}`,
+          tools: [],
+        }));
       }
     } finally {
       abortRef.current = null;
@@ -94,6 +163,11 @@ export default function App() {
   }
 
   function stop() {
+    // deny any tool still waiting for approval so the server stops waiting
+    const last = messages[messages.length - 1];
+    (last?.tools || [])
+      .filter((t) => t.status === "approval")
+      .forEach((t) => approve(t.id, false));
     abortRef.current?.abort();
   }
 
@@ -164,19 +238,35 @@ export default function App() {
 
       <div className="app">
         <header>
-          <h1>Nova</h1>
+          <h1>
+            <span className="logo-dot" />
+            Nova
+          </h1>
+          <button
+            className="theme-toggle"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            title="Toggle theme"
+          >
+            {theme === "dark" ? "☀" : "☾"}
+          </button>
         </header>
 
         <main>
           {messages.length === 0 && (
-            <p className="empty">Hi, I'm Nova. Ask me anything.</p>
+            <div className="empty">
+              <div className="orbit" />
+              <h2>Hi, I'm Nova</h2>
+              <p>Ask me anything.</p>
+            </div>
           )}
           {messages.map((m, i) => (
             <Message
               key={i}
               role={m.role}
               content={m.content}
+              tools={m.tools}
               pending={loading && i === messages.length - 1}
+              onApprove={approve}
             />
           ))}
           <div ref={bottomRef} />
