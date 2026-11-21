@@ -34,3 +34,27 @@ def save(session_id: str, history: list[dict]) -> None:
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(history, f, indent=2, ensure_ascii=False)
     tmp.replace(path)
+
+
+def list_chats() -> list[dict]:
+    """All saved chats, newest first, as {id, title}."""
+    chats = []
+    for p in DATA_DIR.glob("*.json"):
+        try:
+            with open(p, encoding="utf-8") as f:
+                history = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue  # skip unreadable files
+        first_user = next((m["content"] for m in history if m["role"] == "user"), None)
+        if first_user is None:
+            continue  # nothing said yet
+        title = first_user.strip().replace("\n", " ")
+        if len(title) > 40:
+            title = title[:40] + "…"
+        chats.append({"id": p.stem, "title": title, "mtime": p.stat().st_mtime})
+    chats.sort(key=lambda c: c["mtime"], reverse=True)
+    return [{"id": c["id"], "title": c["title"]} for c in chats]
+
+
+def delete(session_id: str) -> None:
+    _path(session_id).unlink(missing_ok=True)

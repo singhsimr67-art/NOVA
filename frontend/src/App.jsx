@@ -6,6 +6,7 @@ const API = "http://localhost:8000";
 export default function App() {
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [messages, setMessages] = useState([]);
+  const [chats, setChats] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
@@ -13,6 +14,19 @@ export default function App() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  async function refreshChats() {
+    try {
+      const res = await fetch(`${API}/chats`);
+      setChats(await res.json());
+    } catch {
+      /* backend offline: leave the list as it is */
+    }
+  }
+
+  useEffect(() => {
+    refreshChats();
+  }, []);
 
   async function send() {
     const text = input.trim();
@@ -59,13 +73,39 @@ export default function App() {
       });
     } finally {
       setLoading(false);
+      refreshChats();
     }
   }
 
   function newChat() {
-    fetch(`${API}/reset/${sessionId}`, { method: "POST" }).catch(() => {});
+    if (loading) return;
     setMessages([]);
     setSessionId(crypto.randomUUID());
+  }
+
+  async function openChat(id) {
+    if (loading || id === sessionId) return;
+    try {
+      const res = await fetch(`${API}/chats/${id}`);
+      if (!res.ok) throw new Error();
+      setMessages(await res.json());
+      setSessionId(id);
+    } catch {
+      /* ignore: chat couldn't be loaded */
+    }
+  }
+
+  async function deleteChat(id, e) {
+    e.stopPropagation();
+    if (loading) return;
+    if (!window.confirm("Delete this chat?")) return;
+    try {
+      await fetch(`${API}/chats/${id}`, { method: "DELETE" });
+    } catch {
+      return;
+    }
+    if (id === sessionId) newChat();
+    refreshChats();
   }
 
   function onKeyDown(e) {
@@ -76,36 +116,62 @@ export default function App() {
   }
 
   return (
-    <div className="app">
-      <header>
-        <h1>Nova</h1>
-        <button onClick={newChat} disabled={loading}>New chat</button>
-      </header>
-
-      <main>
-        {messages.length === 0 && (
-          <p className="empty">Hi, I'm Nova. Ask me anything.</p>
-        )}
-        {messages.map((m, i) => (
-          <div key={i} className={`msg ${m.role}`}>
-            {m.content || (loading && i === messages.length - 1 ? "…" : "")}
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </main>
-
-      <footer>
-        <textarea
-          rows={1}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="Message Nova (Enter to send, Shift+Enter for a new line)"
-        />
-        <button onClick={send} disabled={loading || !input.trim()}>
-          Send
+    <div className="layout">
+      <aside className="sidebar">
+        <button className="new-chat" onClick={newChat} disabled={loading}>
+          + New chat
         </button>
-      </footer>
+        <div className="chat-list">
+          {chats.length === 0 && <p className="no-chats">No saved chats yet</p>}
+          {chats.map((c) => (
+            <div
+              key={c.id}
+              className={`chat-item ${c.id === sessionId ? "active" : ""}`}
+              onClick={() => openChat(c.id)}
+            >
+              <span className="chat-title">{c.title}</span>
+              <button
+                className="delete"
+                onClick={(e) => deleteChat(c.id, e)}
+                title="Delete chat"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      <div className="app">
+        <header>
+          <h1>Nova</h1>
+        </header>
+
+        <main>
+          {messages.length === 0 && (
+            <p className="empty">Hi, I'm Nova. Ask me anything.</p>
+          )}
+          {messages.map((m, i) => (
+            <div key={i} className={`msg ${m.role}`}>
+              {m.content || (loading && i === messages.length - 1 ? "…" : "")}
+            </div>
+          ))}
+          <div ref={bottomRef} />
+        </main>
+
+        <footer>
+          <textarea
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Message Nova (Enter to send, Shift+Enter for a new line)"
+          />
+          <button onClick={send} disabled={loading || !input.trim()}>
+            Send
+          </button>
+        </footer>
+      </div>
     </div>
   );
 }

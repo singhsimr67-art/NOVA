@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from storage import load, save  # NEW
+from storage import load, save, list_chats, delete
 
 MODEL = "llama3.2:3b"
 MAX_MESSAGES = 20
@@ -29,7 +29,7 @@ class ChatRequest(BaseModel):
 
 def get_history(session_id: str) -> list[dict]:
     if session_id not in sessions:
-        sessions[session_id] = load(session_id)  # NEW: load from disk
+        sessions[session_id] = load(session_id)
     return sessions[session_id]
 
 
@@ -42,7 +42,7 @@ def trim(history: list[dict]) -> None:
 def chat(req: ChatRequest):
     try:
         history = get_history(req.session_id)
-    except ValueError:  # NEW: bad session id
+    except ValueError:
         raise HTTPException(status_code=400, detail="invalid session id")
 
     history.append({"role": "user", "content": req.message})
@@ -62,13 +62,31 @@ def chat(req: ChatRequest):
             yield f"\n[Error talking to the model: {e}]"
             return
         history.append({"role": "assistant", "content": reply})
-        save(req.session_id, history)  # NEW: persist after every reply
+        save(req.session_id, history)
 
     return StreamingResponse(generate(), media_type="text/plain")
 
 
-@app.post("/reset/{session_id}")
-def reset(session_id: str):
-    # only clears the in-memory copy; the saved file stays on disk
+@app.get("/chats")
+def get_chats():
+    return list_chats()
+
+
+@app.get("/chats/{session_id}")
+def get_chat(session_id: str):
+    try:
+        history = get_history(session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid session id")
+    # the browser doesn't need the system prompt
+    return [m for m in history if m["role"] != "system"]
+
+
+@app.delete("/chats/{session_id}")
+def delete_chat(session_id: str):
+    try:
+        delete(session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid session id")
     sessions.pop(session_id, None)
     return {"ok": True}
