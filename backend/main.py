@@ -50,19 +50,28 @@ def chat(req: ChatRequest):
 
     def generate():
         reply = ""
+        failed = False
+        stream = None
         try:
-            for chunk in ollama.chat(
+            stream = ollama.chat(
                 model=MODEL, messages=history, stream=True, keep_alive="30m"
-            ):
+            )
+            for chunk in stream:
                 piece = chunk["message"]["content"]
                 reply += piece
                 yield piece
         except Exception as e:
-            history.pop()
+            failed = True
             yield f"\n[Error talking to the model: {e}]"
-            return
-        history.append({"role": "assistant", "content": reply})
-        save(req.session_id, history)
+        finally:
+            # runs on success, on error, AND when the browser disconnects (Stop)
+            if stream is not None:
+                stream.close()  # tells Ollama to stop generating
+            if failed or not reply:
+                history.pop()  # drop the user message that got no reply
+            else:
+                history.append({"role": "assistant", "content": reply})
+                save(req.session_id, history)  # keeps partial replies too
 
     return StreamingResponse(generate(), media_type="text/plain")
 

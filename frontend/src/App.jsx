@@ -11,6 +11,7 @@ export default function App() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
+  const abortRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -35,6 +36,7 @@ export default function App() {
 
     setInput("");
     setLoading(true);
+    let received = false;
     setMessages((prev) => [
       ...prev,
       { role: "user", content: text },
@@ -42,10 +44,13 @@ export default function App() {
     ]);
 
     try {
+      const controller = new AbortController();
+      abortRef.current = controller;
       const res = await fetch(`${API}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionId, message: text }),
+        signal: controller.signal,
       });
       if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`);
 
@@ -56,6 +61,7 @@ export default function App() {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
+        if (chunk) received = true;
         setMessages((prev) => {
           const copy = [...prev];
           const last = copy[copy.length - 1];
@@ -64,18 +70,31 @@ export default function App() {
         });
       }
     } catch (err) {
-      setMessages((prev) => {
-        const copy = [...prev];
-        copy[copy.length - 1] = {
-          role: "assistant",
-          content: `Could not reach Nova: ${err.message}`,
-        };
-        return copy;
-      });
+      if (err.name === "AbortError") {
+        // user pressed Stop: keep the partial reply, or undo if nothing arrived
+        if (!received) {
+          setMessages((prev) => prev.slice(0, -2));
+          setInput(text);
+        }
+      } else {
+        setMessages((prev) => {
+          const copy = [...prev];
+          copy[copy.length - 1] = {
+            role: "assistant",
+            content: `Could not reach Nova: ${err.message}`,
+          };
+          return copy;
+        });
+      }
     } finally {
+      abortRef.current = null;
       setLoading(false);
       refreshChats();
     }
+  }
+
+  function stop() {
+    abortRef.current?.abort();
   }
 
   function newChat() {
@@ -171,9 +190,15 @@ export default function App() {
             onKeyDown={onKeyDown}
             placeholder="Message Nova (Enter to send, Shift+Enter for a new line)"
           />
-          <button onClick={send} disabled={loading || !input.trim()}>
-            Send
-          </button>
+          {loading ? (
+            <button className="stop-btn" onClick={stop}>
+              Stop
+            </button>
+          ) : (
+            <button onClick={send} disabled={!input.trim()}>
+              Send
+            </button>
+          )}
         </footer>
       </div>
     </div>

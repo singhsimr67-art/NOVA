@@ -193,3 +193,5 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .msg.assistant td { border: 1px solid #2a2f38; padding: 6px 10px; }
 .msg.assistant th { background: #22262e; }
 .msg.assistant { max-width: 100%; }
+
+.stop-btn { background: #c0392b; }
