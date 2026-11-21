@@ -128,3 +128,68 @@ button {
   cursor: pointer;
 }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- markdown in Nova's replies ---------- */
+.msg.assistant { white-space: normal; }
+
+.msg.assistant > :first-child { margin-top: 0; }
+.msg.assistant > :last-child { margin-bottom: 0; }
+
+.msg.assistant p { margin: 0 0 0.8em; }
+.msg.assistant ul,
+.msg.assistant ol { margin: 0 0 0.8em; padding-left: 1.4em; }
+.msg.assistant li { margin: 0.2em 0; }
+.msg.assistant h1,
+.msg.assistant h2,
+.msg.assistant h3 { margin: 1em 0 0.5em; line-height: 1.3; }
+.msg.assistant h1 { font-size: 1.3rem; }
+.msg.assistant h2 { font-size: 1.15rem; }
+.msg.assistant h3 { font-size: 1.05rem; }
+.msg.assistant a { color: #6ea8fe; }
+.msg.assistant blockquote {
+  margin: 0 0 0.8em;
+  padding-left: 12px;
+  border-left: 3px solid #2f6feb;
+  color: #b4b9c2;
+}
+
+/* inline code */
+.msg.assistant code {
+  font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+  font-size: 0.9em;
+}
+.msg.assistant :not(pre) > code {
+  background: #2a2f38;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* code blocks */
+.code-block { position: relative; margin: 0 0 0.8em; }
+.code-block pre {
+  margin: 0;
+  padding: 14px;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: #0d1117;
+  border: 1px solid #22262e;
+}
+.code-block pre code { background: none; padding: 0; }
+.copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  background: #2a2f38;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.code-block:hover .copy-btn { opacity: 1; }
+
+/* tables */
+.msg.assistant table { border-collapse: collapse; margin: 0 0 0.8em; display: block; overflow-x: auto; }
+.msg.assistant th,
+.msg.assistant td { border: 1px solid #2a2f38; padding: 6px 10px; }
+.msg.assistant th { background: #22262e; }
+.msg.assistant { max-width: 100%; }

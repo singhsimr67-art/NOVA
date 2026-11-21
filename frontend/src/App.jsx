@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import "./App.css";
+import Message from "./Message";
 
 const API = "http://localhost:8000";
 
@@ -152,9 +153,12 @@ export default function App() {
             <p className="empty">Hi, I'm Nova. Ask me anything.</p>
           )}
           {messages.map((m, i) => (
-            <div key={i} className={`msg ${m.role}`}>
-              {m.content || (loading && i === messages.length - 1 ? "…" : "")}
-            </div>
+            <Message
+              key={i}
+              role={m.role}
+              content={m.content}
+              pending={loading && i === messages.length - 1}
+            />
           ))}
           <div ref={bottomRef} />
         </main>
