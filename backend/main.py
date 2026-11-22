@@ -86,6 +86,7 @@ def chat(req: ChatRequest):
                     tools=TOOL_SCHEMAS,
                     stream=True,
                     keep_alive="30m",
+                    options={"temperature": 0.2},
                 )
                 for chunk in stream:
                     msg = chunk.message
