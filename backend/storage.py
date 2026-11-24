@@ -23,7 +23,11 @@ def load(session_id: str) -> list[dict]:
     if not path.exists():
         return [{"role": "system", "content": SYSTEM_PROMPT}]
     with open(path, encoding="utf-8") as f:
-        return json.load(f)
+        history = json.load(f)
+    # always use the current system prompt, even for older saved chats
+    if history and history[0]["role"] == "system":
+        history[0]["content"] = SYSTEM_PROMPT
+    return history
 
 
 def save(session_id: str, history: list[dict]) -> None:

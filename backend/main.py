@@ -203,3 +203,8 @@ def delete_chat(session_id: str):
         raise HTTPException(status_code=400, detail="invalid session id")
     sessions.pop(session_id, None)
     return {"ok": True}
+
+@app.get("/health")
+async def health():
+    return "everything is fine"
+    
