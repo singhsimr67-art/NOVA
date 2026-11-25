@@ -10,8 +10,11 @@ export default function App() {
   const [chats, setChats] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editValue, setEditValue] = useState("");
   const bottomRef = useRef(null);
   const abortRef = useRef(null);
+  const editDoneRef = useRef(false);
   const [theme, setTheme] = useState(
     () =>
       localStorage.getItem("nova-theme") ||
@@ -202,6 +205,36 @@ export default function App() {
     refreshChats();
   }
 
+  function startRename(id, title, e) {
+    e.stopPropagation();
+    if (loading) return;
+    editDoneRef.current = false;
+    setEditingId(id);
+    setEditValue(title);
+  }
+
+  async function commitRename() {
+    if (editDoneRef.current || !editingId) return;
+    editDoneRef.current = true;
+    const id = editingId;
+    setEditingId(null);
+    try {
+      await fetch(`${API}/chats/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editValue }),
+      });
+    } catch {
+      /* backend offline: keep the old title */
+    }
+    refreshChats();
+  }
+
+  function cancelRename() {
+    editDoneRef.current = true;
+    setEditingId(null);
+  }
+
   function onKeyDown(e) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -223,14 +256,47 @@ export default function App() {
               className={`chat-item ${c.id === sessionId ? "active" : ""}`}
               onClick={() => openChat(c.id)}
             >
-              <span className="chat-title">{c.title}</span>
-              <button
-                className="delete"
-                onClick={(e) => deleteChat(c.id, e)}
-                title="Delete chat"
-              >
-                ✕
-              </button>
+              {editingId === c.id ? (
+                <input
+                  className="rename-input"
+                  value={editValue}
+                  autoFocus
+                  maxLength={80}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRename();
+                    if (e.key === "Escape") cancelRename();
+                  }}
+                />
+              ) : (
+                <>
+                  <span
+                    className="chat-title"
+                    title="Double-click to rename"
+                    onDoubleClick={(e) => startRename(c.id, c.title, e)}
+                  >
+                    {c.title}
+                  </span>
+                  <span className="chat-actions">
+                    <button
+                      className="edit"
+                      onClick={(e) => startRename(c.id, c.title, e)}
+                      title="Rename chat"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      className="delete"
+                      onClick={(e) => deleteChat(c.id, e)}
+                      title="Delete chat"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                </>
+              )}
             </div>
           ))}
         </div>

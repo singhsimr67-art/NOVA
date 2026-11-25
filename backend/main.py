@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from storage import load, save, list_chats, delete
+from storage import load, save, list_chats, delete, set_title
 from tools import TOOL_SCHEMAS, REQUIRES_APPROVAL, run_tool
 
 MODEL = "llama3.2:3b"
@@ -208,3 +208,17 @@ def delete_chat(session_id: str):
 async def health():
     return "everything is fine"
     
+
+class RenameRequest(BaseModel):
+    title: str
+
+
+@app.patch("/chats/{session_id}")
+def rename_chat(session_id: str, body: RenameRequest):
+    try:
+        set_title(session_id, body.title)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid session id")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="chat not found")
+    return {"ok": True}

@@ -468,3 +468,31 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   0%, 100% { opacity: 0.3; transform: scale(0.8); }
   50% { opacity: 1; transform: scale(1.2); }
 }
+
+/* ============ RENAME CHATS ============ */
+.chat-actions { display: flex; gap: 2px; flex-shrink: 0; }
+
+.edit {
+  padding: 2px 8px;
+  background: transparent;
+  color: var(--muted);
+  opacity: 0;
+  box-shadow: none;
+  font-weight: 400;
+}
+.chat-item:hover .edit { opacity: 1; }
+.edit:hover:not(:disabled) { color: var(--accent-2); box-shadow: none; transform: none; }
+
+.rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  box-shadow: 0 0 0 3px var(--inline-code);
+}
